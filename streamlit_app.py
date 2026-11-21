@@ -72,13 +72,10 @@ with st.sidebar:
     
     api_key_input = st.text_input(
         "Google Gemini API Key (Optional)",
-        value=config.get("gemini_api_key", ""),
+        value="",
         type="password",
         help="গুগল এআই স্টুডিও থেকে ফ্রি এপিআই কী দিলে এআই সবচেয়ে সেরা ভাইরাল অংশ বেছে নেবে। না দিলেও লোকাল অ্যালগরিদম দিয়ে কাজ করবে।"
     )
-    if api_key_input != config.get("gemini_api_key", ""):
-        config["gemini_api_key"] = api_key_input
-        save_config(config)
 
     st.markdown("---")
     num_clips = st.slider("কতগুলো ক্লিপ বের করবেন?", min_value=1, max_value=5, value=config.get("num_clips", 3))
@@ -160,7 +157,7 @@ if start_button:
         try:
             pipeline = ClipperPipeline(
                 base_dir=BASE_DIR,
-                gemini_api_key=config.get("gemini_api_key", "").strip() or None,
+                gemini_api_key=api_key_input.strip() or None,
                 whisper_model=whisper_model
             )
 
@@ -177,31 +174,34 @@ if start_button:
 
             status_text.success("🎉 সবগুলো শর্টস সফলভাবে তৈরি হয়েছে!")
             progress_bar.progress(1.0)
-
-            st.markdown("### 🌟 প্রস্তুতকৃত ভাইরাল শর্টস সমূহ:")
-
-            cols = st.columns(min(len(results), 3))
-            for idx, clip in enumerate(results):
-                col = cols[idx % len(cols)]
-                with col:
-                    st.markdown(f"#### 📌 {clip.get('title', f'Clip {idx+1}')}")
-                    st.markdown(f"<span class='score-badge'>🔥 Viral Score: {clip.get('viral_score', 90)}/100</span>", unsafe_allow_html=True)
-                    st.caption(f"⏱️ দৈর্ঘ্য: {clip.get('duration', 0)} সেকেন্ড ({clip.get('start_time', 0)}s - {clip.get('end_time', 0)}s)")
-                    if clip.get('reason'):
-                        st.caption(f"💡 কেন ভাইরাল: {clip.get('reason')}")
-
-                    file_path = clip.get("output_file")
-                    if file_path and os.path.exists(file_path):
-                        st.video(file_path)
-                        with open(file_path, "rb") as f:
-                            st.download_button(
-                                label=f"⬇️ ডাউনলোড শর্ট {idx+1}",
-                                data=f.read(),
-                                file_name=clip.get("filename", f"short_{idx+1}.mp4"),
-                                mime="video/mp4",
-                                key=f"dl_{idx}"
-                            )
+            st.session_state["clips_results"] = results
 
         except Exception as e:
             st.error(f"❌ এরর দেখা দিয়েছে: {str(e)}")
             st.info("টিপ: ভিডিওতে অডিও ঠিক আছে কি না অথবা ইউটিউব লিঙ্কটি পাবলিক কি না তা যাচাই করুন।")
+
+if st.session_state.get("clips_results"):
+    results = st.session_state["clips_results"]
+    st.markdown("### 🌟 প্রস্তুতকৃত ভাইরাল শর্টস সমূহ:")
+
+    cols = st.columns(min(len(results), 3))
+    for idx, clip in enumerate(results):
+        col = cols[idx % len(cols)]
+        with col:
+            st.markdown(f"#### 📌 {clip.get('title', f'Clip {idx+1}')}")
+            st.markdown(f"<span class='score-badge'>🔥 Viral Score: {clip.get('viral_score', 90)}/100</span>", unsafe_allow_html=True)
+            st.caption(f"⏱️ দৈর্ঘ্য: {clip.get('duration', 0)} সেকেন্ড ({clip.get('start_time', 0)}s - {clip.get('end_time', 0)}s)")
+            if clip.get('reason'):
+                st.caption(f"💡 কেন ভাইরাল: {clip.get('reason')}")
+
+            file_path = clip.get("output_file")
+            if file_path and os.path.exists(file_path):
+                st.video(file_path)
+                with open(file_path, "rb") as f:
+                    st.download_button(
+                        label=f"⬇️ ডাউনলোড শর্ট {idx+1}",
+                        data=f.read(),
+                        file_name=clip.get("filename", f"short_{idx+1}.mp4"),
+                        mime="video/mp4",
+                        key=f"dl_{idx}"
+                    )
