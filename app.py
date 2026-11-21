@@ -1,5 +1,7 @@
 import os
+os.environ["GRADIO_SSR_MODE"] = "False"
 import json
+import inspect
 import gradio as gr
 from core.pipeline import ClipperPipeline
 
@@ -125,7 +127,7 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
             info_slots = []
             
             for idx in range(5):
-                with gr.Group(visible=False) as grp:
+                with gr.Group():
                     info_md = gr.Markdown("", visible=False)
                     vid_player = gr.Video(label=f"Short #{idx+1}", interactive=False, visible=False)
                     video_slots.append(vid_player)
@@ -145,4 +147,10 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    sig = inspect.signature(demo.launch).parameters
+    launch_kwargs = {"server_name": "0.0.0.0", "server_port": 7860}
+    if "ssr_mode" in sig:
+        launch_kwargs["ssr_mode"] = False
+    if "ssr" in sig:
+        launch_kwargs["ssr"] = False
+    demo.launch(**launch_kwargs)
