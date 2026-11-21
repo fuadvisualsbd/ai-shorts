@@ -155,19 +155,28 @@ class VideoDownloader:
             output_template = output_path
 
         cookiefile = self._get_cookiefile()
-        # Clients that support cookies vs cookieless mobile fallback clients
+        default_fmt = (
+            'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/'
+            'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best'
+        )
+        hls_fmt = (
+            'bestvideo[protocol^=m3u8][height<=720]+bestaudio[protocol^=m3u8]/'
+            'best[protocol^=m3u8][height<=720]/best[protocol^=m3u8]'
+        )
+        # Try standard MP4 first, then HLS (avoids 403 on PO-token/music videos), then tv_simply/mobile clients
         client_attempts = [
-            (None, True),
-            (['tv'], True),
-            (['android'], False),
-            (['android_vr'], False),
-            (['mweb'], True),
+            (None, True, default_fmt),
+            (None, True, hls_fmt),
+            (['tv_simply'], True, 'best[height<=720]/best'),
+            (['tv_simply'], False, 'best[height<=720]/best'),
+            (['android'], False, 'best[height<=720]/best'),
+            (['android_vr'], False, 'best[height<=720]/best'),
         ]
 
         attempt_errors = []
         final_video_path = None
 
-        for clients, use_cookies in client_attempts:
+        for clients, use_cookies, fmt in client_attempts:
             # Clean any leftover empty or partial files for this video before retrying
             for f in os.listdir(self.temp_dir):
                 if f.startswith(video_id) and (f.endswith(('.part', '.ytdl', '.mp4', '.mkv', '.webm'))):
@@ -180,7 +189,7 @@ class VideoDownloader:
 
             ydl_opts = {
                 **self._base_ydl_opts(),
-                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best',
+                'format': fmt,
                 'outtmpl': output_template,
                 'merge_output_format': 'mp4',
                 'quiet': False,
