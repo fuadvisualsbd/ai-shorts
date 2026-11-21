@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 from typing import Dict, List, Optional, Tuple
+import requests
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
 import webvtt
@@ -237,3 +238,24 @@ class VideoDownloader:
         ]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         return audio_path
+
+    def download_direct_url(self, url: str, max_mb: int = 400) -> str:
+        """Downloads a direct MP4/video URL to temp_dir with streaming and size guard."""
+        video_path = os.path.join(self.temp_dir, "direct_video.mp4")
+        with requests.get(url.strip(), stream=True, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as r:
+            r.raise_for_status()
+            content_type = (r.headers.get("Content-Type") or "").lower()
+            if "text/html" in content_type:
+                raise RuntimeError("এটি সরাসরি ভিডিও ফাইল (MP4) লিংক নয়, একটি ওয়েবপেজ লিংক।")
+            total = 0
+            limit = max_mb * 1024 * 1024
+            with open(video_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024 * 256):
+                    if chunk:
+                        total += len(chunk)
+                        if total > limit:
+                            raise RuntimeError(f"ভিডিও ফাইলটি {max_mb} MB-এর চেয়ে বড়।")
+                        f.write(chunk)
+        if not os.path.exists(video_path) or os.path.getsize(video_path) < 1024:
+            raise RuntimeError("ডাউনলোড করা ভিডিও ফাইলটি খালি।")
+        return video_path

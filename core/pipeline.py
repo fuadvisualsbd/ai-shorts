@@ -126,6 +126,37 @@ class ClipperPipeline:
             update_progress=update_progress
         )
 
+    def process_direct_url(
+        self,
+        direct_url: str,
+        num_clips: int = 3,
+        min_duration: int = 30,
+        max_duration: int = 60,
+        crop_mode: str = "center_crop",
+        burn_subtitles: bool = True,
+        subtitle_color: str = "&H0000FFFF",
+        progress_callback: Optional[Callable[[str, float], None]] = None
+    ) -> List[Dict]:
+        """Downloads a direct video URL (e.g. MP4) and runs clipping pipeline."""
+        def update_progress(msg: str, frac: float):
+            if progress_callback:
+                progress_callback(msg, frac)
+            print(f"[{int(frac * 100)}%] {msg}")
+
+        update_progress("ডাইরেক্ট লিংক থেকে ভিডিও ডাউনলোড হচ্ছে...", 0.10)
+        video_path = self.downloader.download_direct_url(direct_url)
+        return self.process_file(
+            video_path=video_path,
+            video_title="Direct Video",
+            num_clips=num_clips,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            crop_mode=crop_mode,
+            burn_subtitles=burn_subtitles,
+            subtitle_color=subtitle_color,
+            progress_callback=progress_callback
+        )
+
     def _analyze_and_render_clips(
         self,
         video_path: str,

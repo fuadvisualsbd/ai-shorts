@@ -143,7 +143,11 @@ for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY"):
 st.markdown('<p class="main-title">🎬 AI Video Clipper & Shorts Generator</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">বড় ইউটিউব ভিডিওর লিংক বা মোবাইল/পিসি থেকে ভিডিও দিন — AI স্বয়ংক্রিয়ভাবে আকর্ষণীয় ভাইরাল মোমেন্ট খুঁজে ৯:১৬ রিলস/শর্টস বানিয়ে দেবে।</p>', unsafe_allow_html=True)
 
-tab_yt, tab_upload = st.tabs(["📺 ইউটিউব লিংক", "📁 ভিডিও আপলোড (ফোন / পিসি)"])
+tab_yt, tab_upload, tab_direct = st.tabs([
+    "📺 ইউটিউব লিংক",
+    "📁 ভিডিও আপলোড (ফোন / পিসি)",
+    "🔗 ডাইরেক্ট ভিডিও লিংক (MP4)"
+])
 
 with tab_yt:
     url_input = st.text_input(
@@ -154,6 +158,7 @@ with tab_yt:
     start_yt_button = st.button("⚡ Generate Viral Shorts (YouTube)", type="primary", use_container_width=True)
 
 with tab_upload:
+    st.info("💡 ফোনের ইন্টারনেটে **cobalt.tools** বা যেকোনো ডাউনলোডার দিয়ে ভিডিওটি নামিয়ে এখানে আপলোড করলে ১০০% কাজ করবে (কোনো YouTube ব্লক ছাড়া)।")
     uploaded_file = st.file_uploader(
         "ফোন বা পিসি থেকে ভিডিও আপলোড করুন (MP4 / MOV / MKV):",
         type=["mp4", "mov", "mkv", "webm"],
@@ -161,11 +166,21 @@ with tab_upload:
     )
     start_upload_button = st.button("⚡ Generate Viral Shorts (Upload)", type="primary", use_container_width=True)
 
-if start_yt_button or start_upload_button:
+with tab_direct:
+    direct_url_input = st.text_input(
+        "সরাসরি MP4 / ভিডিও ফাইল লিংক পেস্ট করুন:",
+        placeholder="https://.../video.mp4",
+        help="ফোনের ডাউনলোডার থেকে পাওয়া সরাসরি .mp4 ডাউনলোড লিংক দিন।"
+    )
+    start_direct_button = st.button("⚡ Generate Viral Shorts (Direct URL)", type="primary", use_container_width=True)
+
+if start_yt_button or start_upload_button or start_direct_button:
     if start_yt_button and not url_input.strip():
         st.error("দয়া করে একটি সঠিক ইউটিউব ভিডিওর লিংক দিন!")
     elif start_upload_button and uploaded_file is None:
         st.error("দয়া করে একটি ভিডিও ফাইল আপলোড করুন!")
+    elif start_direct_button and not direct_url_input.strip():
+        st.error("দয়া করে একটি সঠিক ডাইরেক্ট ভিডিও (MP4) লিংক দিন!")
     else:
         progress_bar = st.progress(0.0)
         status_text = st.empty()
@@ -184,6 +199,17 @@ if start_yt_button or start_upload_button:
             if start_yt_button:
                 results = pipeline.process_url(
                     url=url_input.strip(),
+                    num_clips=num_clips,
+                    min_duration=min_dur,
+                    max_duration=max_dur,
+                    crop_mode=selected_crop_mode,
+                    burn_subtitles=burn_subs,
+                    subtitle_color=selected_sub_color,
+                    progress_callback=on_progress
+                )
+            elif start_direct_button:
+                results = pipeline.process_direct_url(
+                    direct_url=direct_url_input.strip(),
                     num_clips=num_clips,
                     min_duration=min_dur,
                     max_duration=max_dur,
@@ -218,10 +244,15 @@ if start_yt_button or start_upload_button:
         except Exception as e:
             err_msg = str(e)
             st.error(f"❌ এরর দেখা দিয়েছে: {err_msg}")
-            if "not a bot" in err_msg.lower() or "cookies" in err_msg.lower():
-                st.warning("💡 ক্লাউড সার্ভারের IP থেকে YouTube বট-চেক দেখাচ্ছে। সমাধান: পাশের **'📁 ভিডিও আপলোড'** ট্যাব ব্যবহার করুন অথবা অ্যাডমিন সেটিংসে YouTube cookies যোগ করুন।")
+            if "403" in err_msg or "not a bot" in err_msg.lower() or "cookies" in err_msg.lower():
+                st.warning(
+                    "💡 ক্লাউড সার্ভারের IP থেকে YouTube এই ভিডিওটি ব্লক করেছে। "
+                    "আপনার ফোনের ইন্টারনেট ব্যবহার করে ডাউনলোড করতে নিচের বাটনে ক্লিক করে ভিডিওটি নামান, "
+                    "তারপর পাশের **'📁 ভিডিও আপলোড'** ট্যাবে আপলোড করুন বা **'🔗 ডাইরেক্ট ভিডিও লিংক'** ট্যাবে লিংক দিন:"
+                )
+                st.link_button("⬇️ ফোনের নেট দিয়ে YouTube ভিডিও ডাউনলোড করুন (cobalt.tools)", "https://cobalt.tools")
             else:
-                st.info("টিপ: ভিডিওতে অডিও ঠিক আছে কি না অথবা ইউটিউব লিঙ্কটি পাবলিক কি না তা যাচাই করুন।")
+                st.info("টিপ: ভিডিওতে অডিও ঠিক আছে কি না অথবা লিঙ্কটি সঠিক কি না তা যাচাই করুন।")
 
 if st.session_state.get("clips_results"):
     results = st.session_state["clips_results"]
