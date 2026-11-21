@@ -43,7 +43,7 @@ def save_key(api_key: str):
     except Exception:
         pass
 
-@spaces.GPU(duration=120)
+@spaces.GPU(duration=60)
 def process_video(
     youtube_url: str,
     num_clips: int,
