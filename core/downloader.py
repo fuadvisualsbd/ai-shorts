@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import shutil
 import subprocess
 from typing import Dict, List, Optional, Tuple
 import yt_dlp
@@ -37,16 +38,27 @@ class VideoDownloader:
             f.write(cookies_content)
         return cookie_path
 
+    def _base_ydl_opts(self) -> Dict:
+        """Common yt-dlp options including Node.js EJS runtime when available."""
+        opts: Dict = {
+            'noplaylist': True,
+            'socket_timeout': 30,
+            'retries': 3,
+            'remote_components': ['ejs:github'],
+        }
+        if shutil.which("node"):
+            opts['js_runtimes'] = {'node': {}}
+        return opts
+
     def get_info(self, url: str) -> Dict:
         """Fetches video metadata (title, duration, thumbnail, author) without downloading."""
         clean_url = self.normalize_url(url)
         ydl_opts = {
+            **self._base_ydl_opts(),
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
-            'noplaylist': True,
-            'socket_timeout': 25,
-            'retries': 3,
+            'ignore_no_formats_error': True,
         }
         cookiefile = self._get_cookiefile()
         if cookiefile:
@@ -129,17 +141,20 @@ class VideoDownloader:
         else:
             output_template = output_path
 
+        cookiefile = self._get_cookiefile()
+        # Clients that support cookies vs cookieless mobile fallback clients
         client_attempts = [
-            ['android'],
-            ['android_vr'],
-            None,
-            ['mweb'],
+            (None, True),
+            (['tv'], True),
+            (['android'], False),
+            (['android_vr'], False),
+            (['mweb'], True),
         ]
 
         last_error = None
         final_video_path = None
 
-        for clients in client_attempts:
+        for clients, use_cookies in client_attempts:
             # Clean any leftover empty or partial files for this video before retrying
             for f in os.listdir(self.temp_dir):
                 if f.startswith(video_id) and (f.endswith(('.part', '.ytdl', '.mp4', '.mkv', '.webm'))):
@@ -151,19 +166,16 @@ class VideoDownloader:
                             pass
 
             ydl_opts = {
-                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]/best',
+                **self._base_ydl_opts(),
+                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
                 'outtmpl': output_template,
                 'merge_output_format': 'mp4',
-                'noplaylist': True,
-                'socket_timeout': 30,
-                'retries': 3,
                 'quiet': False,
                 'no_warnings': True,
             }
             if clients:
                 ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
-            cookiefile = self._get_cookiefile()
-            if cookiefile:
+            if use_cookies and cookiefile:
                 ydl_opts['cookiefile'] = cookiefile
 
             try:
