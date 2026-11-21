@@ -3,6 +3,8 @@ gradio>=5.0.0,<6.0.0
 spaces
 pydantic==2.10.6
 yt-dlp[default]>=2026.1.0
+yt-dlp-ejs
+deno
 youtube-transcript-api>=0.6.2
 webvtt-py>=0.4.6
 faster-whisper>=1.0.0

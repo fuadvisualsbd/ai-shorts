@@ -39,15 +39,28 @@ class VideoDownloader:
         return cookie_path
 
     def _base_ydl_opts(self) -> Dict:
-        """Common yt-dlp options including Node.js EJS runtime when available."""
+        """Common yt-dlp options including Deno / Node.js EJS runtime when available."""
         opts: Dict = {
             'noplaylist': True,
             'socket_timeout': 30,
             'retries': 3,
             'remote_components': ['ejs:github'],
         }
-        if shutil.which("node"):
-            opts['js_runtimes'] = {'node': {}}
+        runtimes = {}
+        deno_path = shutil.which("deno")
+        if not deno_path:
+            try:
+                import deno
+                deno_path = deno.find_deno_bin()
+            except Exception:
+                pass
+        if deno_path:
+            runtimes['deno'] = {'path': deno_path}
+        node_path = shutil.which("node")
+        if node_path:
+            runtimes['node'] = {'path': node_path}
+        if runtimes:
+            opts['js_runtimes'] = runtimes
         return opts
 
     def get_info(self, url: str) -> Dict:
@@ -151,7 +164,7 @@ class VideoDownloader:
             (['mweb'], True),
         ]
 
-        last_error = None
+        attempt_errors = []
         final_video_path = None
 
         for clients, use_cookies in client_attempts:
@@ -167,7 +180,7 @@ class VideoDownloader:
 
             ydl_opts = {
                 **self._base_ydl_opts(),
-                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best',
                 'outtmpl': output_template,
                 'merge_output_format': 'mp4',
                 'quiet': False,
@@ -193,13 +206,13 @@ class VideoDownloader:
                     final_video_path = candidate
                     break
                 else:
-                    last_error = RuntimeError("Downloaded video file was empty")
+                    attempt_errors.append(f"{clients}: Downloaded file was empty")
             except Exception as e:
-                last_error = e
+                attempt_errors.append(f"{clients}: {e}")
                 print(f"[Notice] yt-dlp attempt with client {clients} failed: {e}")
 
         if not final_video_path:
-            raise RuntimeError(f"ভিডিও ডাউনলোড করা যায়নি (YouTube ব্লক বা খালি ফাইল): {last_error}")
+            raise RuntimeError(f"ভিডিও ডাউনলোড করা যায়নি: {' | '.join(attempt_errors)}")
 
         audio_path = self.extract_audio(final_video_path, prefix=video_id)
         return final_video_path, audio_path
