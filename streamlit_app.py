@@ -90,15 +90,15 @@ with st.sidebar:
     crop_mode_label = st.selectbox(
         "৯:১৬ রিলস ফরম্যাট লেআউট",
         options=[
+            "📐 Direct Center Crop (ফুলস্ক্রিন ক্রপ - সবচেয়ে দ্রুত)",
             "🌟 Blurred Background (পডকাস্ট ও ভাইরাল স্টাইল)",
-            "📐 Direct Center Crop (ফুলস্ক্রিন ক্রপ)",
             "⬛ Fit with Black Bars (কালো ফ্রেম)"
         ],
         index=0
     )
     crop_modes = {
+        "📐 Direct Center Crop (ফুলস্ক্রিন ক্রপ - সবচেয়ে দ্রুত)": "center_crop",
         "🌟 Blurred Background (পডকাস্ট ও ভাইরাল স্টাইল)": "blur_bg",
-        "📐 Direct Center Crop (ফুলস্ক্রিন ক্রপ)": "center_crop",
         "⬛ Fit with Black Bars (কালো ফ্রেম)": "fit_black"
     }
     selected_crop_mode = crop_modes[crop_mode_label]
@@ -120,9 +120,9 @@ with st.sidebar:
 
     whisper_model = st.selectbox(
         "Whisper AI Model (লোকাল ট্রানস্ক্রিপশন)",
-        options=["base", "tiny", "small"],
+        options=["tiny", "base", "small"],
         index=0,
-        help="'base' মডেল দ্রুত ও নির্ভুল কাজ করে।"
+        help="'tiny' মডেল CPU-তে সবচেয়ে দ্রুত কাজ করে।"
     )
 
     st.markdown("---")

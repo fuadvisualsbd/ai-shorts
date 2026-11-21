@@ -105,7 +105,8 @@ class VideoDownloader:
 
     def download_video(self, url: str, output_path: Optional[str] = None) -> Tuple[str, str]:
         """
-        Downloads the video in 1080p / best quality MP4 and extracts audio.
+        Downloads the video (up to 720p MP4 for fast cloud processing) and extracts audio.
+        Retries across multiple YouTube player clients if a stream returns an empty file.
         Returns (video_filepath, audio_filepath).
         """
         clean_url = self.normalize_url(url)
@@ -115,27 +116,62 @@ class VideoDownloader:
         else:
             output_template = output_path
 
-        ydl_opts = {
-            'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
-            'outtmpl': output_template,
-            'merge_output_format': 'mp4',
-            'noplaylist': True,
-            'socket_timeout': 30,
-            'retries': 3,
-            'quiet': False,
-            'no_warnings': True,
-        }
+        client_attempts = [
+            ['android'],
+            ['android_vr'],
+            None,
+            ['mweb'],
+        ]
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([clean_url])
+        last_error = None
+        final_video_path = None
 
-        final_video_path = os.path.join(self.temp_dir, f"{video_id}.mp4")
-        if not os.path.exists(final_video_path):
-            # Locate file matching prefix
+        for clients in client_attempts:
+            # Clean any leftover empty or partial files for this video before retrying
             for f in os.listdir(self.temp_dir):
-                if f.startswith(video_id) and f.endswith(('.mp4', '.mkv', '.webm')):
-                    final_video_path = os.path.join(self.temp_dir, f)
+                if f.startswith(video_id) and (f.endswith(('.part', '.ytdl', '.mp4', '.mkv', '.webm'))):
+                    fpath = os.path.join(self.temp_dir, f)
+                    if os.path.isfile(fpath) and (f.endswith(('.part', '.ytdl')) or os.path.getsize(fpath) < 1024):
+                        try:
+                            os.remove(fpath)
+                        except OSError:
+                            pass
+
+            ydl_opts = {
+                'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]/best',
+                'outtmpl': output_template,
+                'merge_output_format': 'mp4',
+                'noplaylist': True,
+                'socket_timeout': 30,
+                'retries': 3,
+                'quiet': False,
+                'no_warnings': True,
+            }
+            if clients:
+                ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
+
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([clean_url])
+
+                candidate = os.path.join(self.temp_dir, f"{video_id}.mp4")
+                if not os.path.exists(candidate):
+                    for f in os.listdir(self.temp_dir):
+                        if f.startswith(video_id) and f.endswith(('.mp4', '.mkv', '.webm')):
+                            candidate = os.path.join(self.temp_dir, f)
+                            break
+
+                if os.path.exists(candidate) and os.path.getsize(candidate) > 1024:
+                    final_video_path = candidate
                     break
+                else:
+                    last_error = RuntimeError("Downloaded video file was empty")
+            except Exception as e:
+                last_error = e
+                print(f"[Notice] yt-dlp attempt with client {clients} failed: {e}")
+
+        if not final_video_path:
+            raise RuntimeError(f"ভিডিও ডাউনলোড করা যায়নি (YouTube ব্লক বা খালি ফাইল): {last_error}")
 
         audio_path = os.path.join(self.temp_dir, f"{video_id}_audio.wav")
         # Extract 16kHz mono audio for Whisper / processing

@@ -58,9 +58,9 @@ class VideoCropper:
         else:
             final_map = last_pad
 
-        # Encoder selection
+        # Encoder selection (veryfast cuts CPU render time significantly on cloud hosts)
         encoder = "libx264"
-        preset = "fast"
+        preset = "veryfast"
 
         cmd = [
             "ffmpeg", "-y",
@@ -72,7 +72,7 @@ class VideoCropper:
             "-map", "0:a?",
             "-c:v", encoder,
             "-preset", preset,
-            "-crf", "20",
+            "-crf", "23",
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
