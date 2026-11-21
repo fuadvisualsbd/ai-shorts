@@ -128,7 +128,7 @@ with st.sidebar:
     selected_crop_mode = crop_modes[crop_mode_label]
 
     st.markdown("---")
-    burn_subs = st.checkbox("ক্যাপশন / সাবটাইটেল যুক্ত করুন", value=True)
+    burn_subs = st.checkbox("ক্যাপশন / সাবটাইটেল যুক্ত করুন", value=False)
     sub_color_choice = st.selectbox(
         "সাবটাইটেল কালার",
         options=["🔥 Vibrant Yellow (হলুদ)", "⚪ Clean White (সাদা)", "🟢 Neon Green (সবুজ)", "🔵 Cyan Blue (আকাশি)"],

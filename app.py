@@ -122,7 +122,7 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
                 )
 
             with gr.Row():
-                subs_check = gr.Checkbox(value=True, label="🔥 অ্যানিমেটেড সাবটাইটেল যুক্ত করুন")
+                subs_check = gr.Checkbox(value=False, label="🔥 অ্যানিমেটেড সাবটাইটেল যুক্ত করুন")
                 key_box = gr.Textbox(
                     label="Google Gemini API Key (ঐচ্ছিক)",
                     placeholder="AI Studio API Key দিলে সবচেয়ে সেরা হুক বেছে নেবে",
