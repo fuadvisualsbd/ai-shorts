@@ -133,7 +133,7 @@ with st.sidebar:
             subprocess.run(["explorer", OUTPUT_DIR])
 
 # Sync optional Streamlit Cloud Secrets to environment
-for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY"):
+for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY", "YOUTUBE_PROXY"):
     try:
         if _secret_key in st.secrets and not os.environ.get(_secret_key):
             os.environ[_secret_key] = str(st.secrets[_secret_key])
@@ -142,12 +142,28 @@ for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY"):
 
 # Main Area
 st.markdown('<p class="main-title">🎬 AI Video Clipper & Shorts Generator</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">বড় ইউটিউব ভিডিওর লিংক দিন বা ফোন/পিসি থেকে ভিডিও আপলোড করুন — AI স্বয়ংক্রিয়ভাবে সেরা ভাইরাল মোমেন্ট খুঁজে ৯:১৬ রিলস/শর্টস বানিয়ে দেবে।</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">বড় ইউটিউব ভিডিওর লিংক দিন — বিল্ট-ইন IDM ডাউনলোডার দিয়ে ভিডিও নামান অথবা সরাসরি ৯:১৬ ভাইরাল রিলস/শর্টস বানান।</p>', unsafe_allow_html=True)
 
 tab_yt, tab_upload = st.tabs([
-    "📺 ইউটিউব লিংক ও ডাউনলোড",
+    "📺 ইউটিউব ডাউনলোডার ও শর্টস (IDM)",
     "📁 ভিডিও আপলোড (ফোন / পিসি)"
 ])
+
+DEFAULT_FORMATS = [
+    {"key": "1080p", "label": "🎬 1080p Full HD (MP4)", "height": 1080, "audio_only": False, "ext": "mp4"},
+    {"key": "720p", "label": "🎬 720p HD (MP4) — প্রস্তাবিত", "height": 720, "audio_only": False, "ext": "mp4"},
+    {"key": "480p", "label": "📱 480p SD (MP4)", "height": 480, "audio_only": False, "ext": "mp4"},
+    {"key": "360p", "label": "⚡ 360p Compact (MP4)", "height": 360, "audio_only": False, "ext": "mp4"},
+    {"key": "audio", "label": "🎵 Audio Only (M4A)", "height": 0, "audio_only": True, "ext": "m4a"},
+]
+
+if "idm_formats" not in st.session_state:
+    st.session_state["idm_formats"] = {}
+
+idm_dl_button = False
+clip_from_idm_button = False
+selected_fmt = DEFAULT_FORMATS[1]
+num_connections = 8
 
 with tab_yt:
     url_input = st.text_input(
@@ -160,31 +176,88 @@ with tab_yt:
 
     if preview_vid_id:
         st.video(clean_yt_url)
-        start_yt_button = st.button("⚡ সরাসরি প্রসেস করুন (Auto Shorts)", type="primary", use_container_width=True)
 
-        st.markdown("---")
-        st.subheader("⬇️ ফোনে বা পিসিতে এই ভিডিওটি ডাউনলোড করুন")
-        st.info(
-            "📱 **ফোন ও পিসি ইউজারদের জন্য সহজ নিয়ম (৩ ধাপ):**\n\n"
-            "১. নিচের **'⬇️ ভিডিও ডাউনলোড করুন'** বাটনে ট্যাপ করুন (`cobalt.tools` খুলবে এবং আপনার ভিডিওর লিংক অটো বসে যাবে)।\n"
-            "২. সেখানে ডাউনলোড আইকন (`>>` / Download) চাপলেই ভিডিওটি `.mp4` হিসেবে আপনার ফোনের **Downloads / Gallery**-তে সেভ হবে।\n"
-            "৩. ডাউনলোড শেষ হলে উপরের **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাবে গিয়ে ভিডিওটি আপলোড করুন।"
-        )
-        st.link_button(
-            "⬇️ এই ভিডিওটি ডাউনলোড করুন (cobalt.tools)",
-            f"https://cobalt.tools/#{clean_yt_url}",
-            use_container_width=True
-        )
-        with st.expander("📋 লিংক কপি বা বিকল্প ডাউনলোডারের জন্য দেখুন"):
-            st.caption("যদি লিংক অটো না বসে বা অন্য ডাউনলোডার অ্যাপ/সাইট ব্যবহার করেন, নিচের লিংকটির ডানপাশের কপি আইকনে ট্যাপ করুন:")
-            st.code(clean_yt_url, language=None)
+        st.markdown("#### 🚀 বিল্ট-ইন IDM ডাউনলোডার ও প্রসেসর")
+        grab_col, info_col = st.columns([1, 2])
+        with grab_col:
+            grab_btn = st.button("🔍 কোয়ালিটি ও সাইজ চেক করুন", use_container_width=True)
+        if grab_btn:
+            with st.spinner("ভিডিওর ফরম্যাট ও সাইজ স্ক্যান করা হচ্ছে..."):
+                try:
+                    dl_probe = VideoDownloader(temp_dir=os.path.join(BASE_DIR, "temp"))
+                    meta = dl_probe.list_available_formats(clean_yt_url)
+                    st.session_state["idm_formats"][preview_vid_id] = meta
+                except Exception as grab_err:
+                    st.warning(f"ফরম্যাট স্ক্যান করা যায়নি (ডিফল্ট কোয়ালিটি ব্যবহার করুন): {grab_err}")
+
+        cached_meta = st.session_state["idm_formats"].get(preview_vid_id)
+        if cached_meta:
+            with info_col:
+                st.caption(f"📌 **{cached_meta.get('title', '')}** | চ্যানেল: {cached_meta.get('channel', 'N/A')}")
+            fmt_options = cached_meta.get("formats") or DEFAULT_FORMATS
+        else:
+            fmt_options = DEFAULT_FORMATS
+
+        q_col, c_col = st.columns([2, 1])
+        with q_col:
+            default_idx = next((i for i, f in enumerate(fmt_options) if f["key"] == "720p"), 0)
+            selected_fmt = st.selectbox(
+                "কোয়ালিটি সিলেক্ট করুন:",
+                options=fmt_options,
+                index=default_idx,
+                format_func=lambda f: f["label"]
+            )
+        with c_col:
+            num_connections = st.select_slider(
+                "ডাউনলোড থ্রেড (IDM):",
+                options=[1, 4, 8, 12],
+                value=8,
+                help="একসাথে কয়টি কানেকশনে ফাইল সেগমেন্ট ডাউনলোড হবে (IDM-এর মতো)।"
+            )
+
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            start_yt_button = st.button("⚡ ডাউনলোড ও অটো শর্টস বানান", type="primary", use_container_width=True)
+        with btn_col2:
+            idm_dl_button = st.button("⬇️ শুধু ডাউনলোড করুন (IDM)", use_container_width=True)
+
+        # Show saved IDM download result if already downloaded for this video
+        dl_res = st.session_state.get("idm_downloaded")
+        if dl_res and dl_res.get("video_id") == preview_vid_id and os.path.exists(dl_res.get("file_path", "")):
+            st.success(
+                f"✅ ডাউনলোড সম্পন্ন: **{dl_res['title']}** "
+                f"({dl_res['size_mb']} MB | ইঞ্জিন: `{dl_res['engine']}`)"
+            )
+            dl_file_path = dl_res["file_path"]
+            safe_name = "".join(c for c in dl_res["title"] if c.isalnum() or c in (" ", "_", "-")).strip() or preview_vid_id
+            dl_filename = f"{safe_name[:50]}.{dl_res['ext']}"
+            mime_type = "audio/mp4" if dl_res["ext"] == "m4a" else "video/mp4"
+
+            save_col1, save_col2 = st.columns(2)
+            with save_col1:
+                with open(dl_file_path, "rb") as df:
+                    st.download_button(
+                        label=f"💾 ফোনে / পিসিতে সেভ করুন (.{dl_res['ext'].upper()})",
+                        data=df.read(),
+                        file_name=dl_filename,
+                        mime=mime_type,
+                        use_container_width=True,
+                        key=f"idm_save_{preview_vid_id}"
+                    )
+            with save_col2:
+                if dl_res["ext"] != "m4a":
+                    clip_from_idm_button = st.button(
+                        "🎬 এই ভিডিও দিয়ে ভাইরাল শর্টস বানান",
+                        type="primary",
+                        use_container_width=True
+                    )
     else:
-        start_yt_button = st.button("⚡ সরাসরি প্রসেস করুন (Auto Shorts)", type="primary", use_container_width=True)
+        start_yt_button = st.button("⚡ ডাউনলোড ও অটো শর্টস বানান", type="primary", use_container_width=True)
         st.info(
-            "📱 **ফোন থেকে ব্যবহারের নিয়ম:**\n"
-            "১. YouTube অ্যাপে ভিডিওর **Share → Copy link** চাপুন।\n"
-            "২. উপরের বক্সে লিংক পেস্ট করলে ভিডিও প্রিভিউ ও **ফোনে ডাউনলোড বাটন** চলে আসবে।\n"
-            "৩. যদি সরাসরি প্রসেসে সার্ভার ব্লক দেখায়, তাহলে ডাউনলোড বাটন দিয়ে ভিডিও সেভ করে **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাব থেকে শর্টস বানিয়ে নিন।"
+            "📱 **ফোন ও পিসি থেকে ব্যবহারের নিয়ম:**\n\n"
+            "১. YouTube অ্যাপে ভিডিওর **Share → Copy link** চাপুন এবং উপরের বক্সে পেস্ট করুন।\n"
+            "২. ভিডিও প্রিভিউ এলে **কোয়ালিটি (1080p / 720p / 480p / Audio)** বেছে **'⬇️ শুধু ডাউনলোড করুন (IDM)'** অথবা **'⚡ ডাউনলোড ও অটো শর্টস বানান'** চাপুন।\n"
+            "৩. শুধু ডাউনলোড করলে **'💾 ফোনে / পিসিতে সেভ করুন'** বাটন দিয়ে সরাসরি ফোনের Downloads/Gallery-তে সেভ করতে পারবেন।"
         )
 
 with tab_upload:
@@ -201,7 +274,45 @@ with tab_upload:
     )
     start_upload_button = st.button("⚡ Generate Viral Shorts (Upload)", type="primary", use_container_width=True)
 
-if start_yt_button or start_upload_button:
+if idm_dl_button:
+    if not clean_yt_url:
+        st.error("দয়া করে একটি সঠিক ইউটিউব ভিডিওর লিংক দিন!")
+    else:
+        idm_progress = st.progress(0.0)
+        idm_status = st.empty()
+
+        def on_idm_progress(frac: float, msg: str):
+            idm_status.info(f"⏳ **{msg}**")
+            idm_progress.progress(max(0.0, min(1.0, float(frac))))
+
+        try:
+            downloader = VideoDownloader(temp_dir=os.path.join(BASE_DIR, "temp"))
+            dl_info = downloader.download_media(
+                url=clean_yt_url,
+                target_height=selected_fmt["height"],
+                audio_only=selected_fmt["audio_only"],
+                num_connections=num_connections,
+                progress_callback=on_idm_progress,
+            )
+            dl_info["video_id"] = preview_vid_id
+            st.session_state["idm_downloaded"] = dl_info
+            st.rerun()
+        except Exception as e:
+            err_msg = str(e)
+            if "403" in err_msg or "not a bot" in err_msg.lower() or "cookies" in err_msg.lower():
+                st.warning(
+                    "🔒 ক্লাউড সার্ভারের শেয়ার্ড IP থেকে YouTube এই ভিডিওটি ব্লক করেছে।\n\n"
+                    "**সমাধান:**\n"
+                    "• লোকাল পিসি থেকে `Run_Clipper_UI.bat` / `streamlit run streamlit_app.py` চালালে আপনার নিজের IP-তে ১০০% ডাউনলোড হবে, অথবা\n"
+                    "• Streamlit Secrets-এ একটি `YOUTUBE_PROXY` যোগ করুন, অথবা\n"
+                    "• আপনার কাছে ভিডিও থাকলে **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাব ব্যবহার করুন।"
+                )
+                with st.expander("টেকনিক্যাল এরর ডিটেইলস"):
+                    st.code(err_msg)
+            else:
+                st.error(f"❌ ডাউনলোড এরর: {err_msg}")
+
+if start_yt_button or start_upload_button or clip_from_idm_button:
     if start_yt_button and not url_input.strip():
         st.error("দয়া করে একটি সঠিক ইউটিউব ভিডিওর লিংক দিন!")
     elif start_upload_button and uploaded_file is None:
@@ -221,7 +332,20 @@ if start_yt_button or start_upload_button:
                 whisper_model=whisper_model
             )
 
-            if start_yt_button:
+            if clip_from_idm_button and st.session_state.get("idm_downloaded"):
+                dl_res = st.session_state["idm_downloaded"]
+                results = pipeline.process_file(
+                    video_path=dl_res["file_path"],
+                    video_title=dl_res.get("title", "YouTube Video"),
+                    num_clips=num_clips,
+                    min_duration=min_dur,
+                    max_duration=max_dur,
+                    crop_mode=selected_crop_mode,
+                    burn_subtitles=burn_subs,
+                    subtitle_color=selected_sub_color,
+                    progress_callback=on_progress
+                )
+            elif start_yt_button:
                 results = pipeline.process_url(
                     url=url_input.strip(),
                     num_clips=num_clips,
@@ -258,17 +382,11 @@ if start_yt_button or start_upload_button:
         except Exception as e:
             err_msg = str(e)
             if "403" in err_msg or "not a bot" in err_msg.lower() or "cookies" in err_msg.lower():
-                target_dl_url = clean_yt_url or url_input.strip()
                 st.warning(
-                    "🔒 ক্লাউড সার্ভারের IP থেকে YouTube সরাসরি ডাউনলোড ব্লক করেছে।\n\n"
-                    "**সহজ সমাধান (ফোন বা পিসি থেকে):**\n"
-                    "১. নিচের **'⬇️ এই ভিডিওটি ডাউনলোড করুন'** বাটনে ট্যাপ করে ভিডিওটি সেভ করুন।\n"
-                    "২. তারপর উপরের **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাবে গিয়ে ফাইলটি আপলোড করলেই ১০০% শর্টস তৈরি হবে।"
-                )
-                st.link_button(
-                    "⬇️ ফোনের নেট দিয়ে এই ভিডিওটি ডাউনলোড করুন (cobalt.tools)",
-                    f"https://cobalt.tools/#{target_dl_url}" if target_dl_url else "https://cobalt.tools",
-                    use_container_width=True
+                    "🔒 ক্লাউড সার্ভারের শেয়ার্ড IP থেকে YouTube সরাসরি ডাউনলোড ব্লক করেছে।\n\n"
+                    "**সমাধান:**\n"
+                    "• আপনার পিসিতে `Run_Clipper_UI.bat` (অথবা `streamlit run streamlit_app.py`) চালালে নিজের IP-তে সরাসরি ডাউনলোড ও প্রসেস হবে।\n"
+                    "• ক্লাউডে চালাতে Streamlit Secrets-এ `YOUTUBE_PROXY` যোগ করুন, অথবা **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাব থেকে ভিডিও দিন।"
                 )
                 with st.expander("টেকনিক্যাল এরর ডিটেইলস"):
                     st.code(err_msg)
