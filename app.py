@@ -79,7 +79,7 @@ def process_video(
     return tuple(outputs)
 
 # Custom Gradio Blocks UI
-with gr.Blocks(theme=gr.themes.Soft(primary_hue="red", neutral_hue="slate"), title="AI Video Clipper - YouTube to Shorts") as demo:
+with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
     gr.Markdown("""
     # 🎬 AI Video Clipper & Shorts Generator
     **ইউটিউবের বড় ভিডিও থেকে AI দিয়ে ১-ক্লিকে ৯:১৬ ভাইরাল রিলস/শর্টস তৈরি করুন।**
