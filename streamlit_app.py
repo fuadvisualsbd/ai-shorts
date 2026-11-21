@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import streamlit as st
+from core.downloader import VideoDownloader
 from core.pipeline import ClipperPipeline
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -155,7 +156,10 @@ with tab_yt:
         placeholder="https://www.youtube.com/watch?v=... বা https://youtu.be/...",
         help="যেকোনো পডকাস্ট, ইন্টারভিউ বা দীর্ঘ ভিডিওর লিঙ্ক দিন।"
     )
-    start_yt_button = st.button("⚡ Generate Viral Shorts (YouTube)", type="primary", use_container_width=True)
+    preview_vid_id = VideoDownloader.extract_video_id(url_input.strip()) if url_input.strip() else None
+    if preview_vid_id:
+        st.video(f"https://www.youtube.com/watch?v={preview_vid_id}")
+    start_yt_button = st.button("⚡ Download & Generate Viral Shorts", type="primary", use_container_width=True)
 
 with tab_upload:
     st.info("💡 ফোনের ইন্টারনেটে **cobalt.tools** বা যেকোনো ডাউনলোডার দিয়ে ভিডিওটি নামিয়ে এখানে আপলোড করলে ১০০% কাজ করবে (কোনো YouTube ব্লক ছাড়া)।")
