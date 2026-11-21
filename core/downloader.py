@@ -160,13 +160,14 @@ class VideoDownloader:
             'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best'
         )
         hls_fmt = (
-            'bestvideo[protocol^=m3u8][height<=720]+bestaudio[protocol^=m3u8]/'
+            'bestvideo[protocol^=m3u8][height<=720]+bestaudio/'
             'best[protocol^=m3u8][height<=720]/best[protocol^=m3u8]'
         )
-        # Try standard MP4 first, then HLS (avoids 403 on PO-token/music videos), then tv_simply/mobile clients
+        # Try standard MP4 first, then HLS (with & without cookies), then tv_simply/mobile clients
         client_attempts = [
             (None, True, default_fmt),
             (None, True, hls_fmt),
+            (None, False, hls_fmt),
             (['tv_simply'], True, 'best[height<=720]/best'),
             (['tv_simply'], False, 'best[height<=720]/best'),
             (['android'], False, 'best[height<=720]/best'),
