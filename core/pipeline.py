@@ -12,7 +12,8 @@ class ClipperPipeline:
         self,
         base_dir: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
-        whisper_model: str = "base"
+        whisper_model: str = "base",
+        gemini_model: Optional[str] = None
     ):
         if not base_dir:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,7 +25,7 @@ class ClipperPipeline:
 
         self.downloader = VideoDownloader(temp_dir=self.temp_dir)
         self.transcriber = Transcriber(model_size=whisper_model)
-        self.ai_analyzer = AIAnalyzer(api_key=gemini_api_key)
+        self.ai_analyzer = AIAnalyzer(api_key=gemini_api_key, preferred_model=gemini_model)
         self.subtitle_burner = SubtitleBurner()
         self.cropper = VideoCropper()
 

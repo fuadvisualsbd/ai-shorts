@@ -7,8 +7,21 @@ warnings.filterwarnings("ignore")
 import google.generativeai as genai
 
 class AIAnalyzer:
-    def __init__(self, api_key: Optional[str] = None):
+    DEFAULT_TEXT_MODELS = [
+        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash",
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
+        "gemini-4-hydrogen",
+        "gemini-3.1-pro",
+        "gemini-1.5-flash",
+    ]
+
+    def __init__(self, api_key: Optional[str] = None, preferred_model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
+        self.preferred_model = preferred_model
         if self.api_key:
             genai.configure(api_key=self.api_key)
 
@@ -80,8 +93,11 @@ Respond ONLY with a valid JSON array of objects with the exact following schema:
 ]
 """
 
-        # Try gemini-2.5-flash or gemini-1.5-flash
-        model_names = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro"]
+        # Try preferred model first, then fall back through all configured Text-out models
+        model_names = list(self.DEFAULT_TEXT_MODELS)
+        if self.preferred_model and self.preferred_model != "auto":
+            model_names = [self.preferred_model] + [m for m in model_names if m != self.preferred_model]
+
         response_text = None
         for m_name in model_names:
             try:
