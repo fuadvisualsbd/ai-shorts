@@ -19,27 +19,40 @@ class VideoDownloader:
         match = re.search(pattern, url)
         return match.group(1) if match else None
 
+    @classmethod
+    def normalize_url(cls, url: str) -> str:
+        """Strips playlist/radio query params (e.g. &list=RD...) so only the single video is processed."""
+        video_id = cls.extract_video_id(url)
+        if video_id:
+            return f"https://www.youtube.com/watch?v={video_id}"
+        return url.strip()
+
     def get_info(self, url: str) -> Dict:
         """Fetches video metadata (title, duration, thumbnail, author) without downloading."""
+        clean_url = self.normalize_url(url)
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
+            'noplaylist': True,
+            'socket_timeout': 25,
+            'retries': 3,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(clean_url, download=False)
             return {
                 'id': info.get('id'),
                 'title': info.get('title'),
                 'duration': info.get('duration', 0),
                 'thumbnail': info.get('thumbnail'),
                 'channel': info.get('uploader') or info.get('channel'),
-                'description': info.get('description', '')[:500],
+                'description': (info.get('description') or '')[:500],
             }
 
     def fetch_native_transcript(self, url: str) -> Optional[List[Dict]]:
         """
         Tries to fetch native or auto-generated YouTube transcripts instantly.
+        Supports both youtube-transcript-api >= 1.0 and legacy 0.6.x.
         Returns list of {'start': float, 'end': float, 'text': str} if found.
         """
         video_id = self.extract_video_id(url)
@@ -47,8 +60,11 @@ class VideoDownloader:
             return None
 
         try:
-            # First try official transcript API
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # Support both youtube-transcript-api >= 1.0 (.list) and legacy 0.6.x (.list_transcripts)
+            if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            else:
+                transcript_list = YouTubeTranscriptApi().list(video_id)
             
             # Try English, Bengali, or manually created transcripts first
             transcript = None
@@ -67,12 +83,18 @@ class VideoDownloader:
                 raw_data = transcript.fetch()
                 clean_segments = []
                 for item in raw_data:
-                    start = float(item['start'])
-                    duration = float(item['duration'])
+                    if isinstance(item, dict):
+                        start = float(item['start'])
+                        duration = float(item['duration'])
+                        text = item['text']
+                    else:
+                        start = float(item.start)
+                        duration = float(item.duration)
+                        text = item.text
                     clean_segments.append({
                         'start': round(start, 2),
                         'end': round(start + duration, 2),
-                        'text': item['text'].replace('\n', ' ').strip()
+                        'text': text.replace('\n', ' ').strip()
                     })
                 if clean_segments:
                     return clean_segments
@@ -86,7 +108,8 @@ class VideoDownloader:
         Downloads the video in 1080p / best quality MP4 and extracts audio.
         Returns (video_filepath, audio_filepath).
         """
-        video_id = self.extract_video_id(url) or "video"
+        clean_url = self.normalize_url(url)
+        video_id = self.extract_video_id(clean_url) or "video"
         if not output_path:
             output_template = os.path.join(self.temp_dir, f"{video_id}.%(ext)s")
         else:
@@ -96,12 +119,15 @@ class VideoDownloader:
             'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
             'outtmpl': output_template,
             'merge_output_format': 'mp4',
+            'noplaylist': True,
+            'socket_timeout': 30,
+            'retries': 3,
             'quiet': False,
             'no_warnings': True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            ydl.download([clean_url])
 
         final_video_path = os.path.join(self.temp_dir, f"{video_id}.mp4")
         if not os.path.exists(final_video_path):
