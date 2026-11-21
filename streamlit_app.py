@@ -167,23 +167,47 @@ for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY", "YOUTUBE_PROXY"):
 st.markdown('<p class="main-title">🎬 AI Video Clipper & Shorts Generator</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">ফোন বা পিসি থেকে যেকোনো বড় ভিডিও আপলোড করুন — AI স্বয়ংক্রিয়ভাবে সেরা ভাইরাল মোমেন্ট খুঁজে ৯:১৬ রিলস/শর্টস বানিয়ে দেবে।</p>', unsafe_allow_html=True)
 
-st.info(
-    "📱 **ফোন / পিসি থেকে শর্টস বানানোর নিয়ম:**\n\n"
-    "১. নিচের **Browse files** বাটনে ট্যাপ করে ফোনের **Files / Downloads / Gallery** বা পিসি থেকে ভিডিও (`.mp4` / `.mov` / `.mkv`) সিলেক্ট করুন।\n"
-    "২. ফাইল সিলেক্ট হলে নিচের **'⚡ Generate Viral Shorts'** বাটনে চাপুন।\n"
-    "৩. প্রসেস চলাকালীন ব্রাউজার ট্যাবটি খোলা রাখুন—কয়েক মিনিটের মধ্যেই ৯:১৬ শর্টস তৈরি হয়ে যাবে।"
-)
+start_yt_button = False
+url_input = ""
 
-uploaded_file = st.file_uploader(
-    "ফোন বা পিসি থেকে ভিডিও আপলোড করুন (MP4 / MOV / MKV / WEBM):",
-    type=["mp4", "mov", "mkv", "webm"],
-    help="সর্বোচ্চ 400MB পর্যন্ত ভিডিও আপলোড করা যাবে।"
-)
-start_upload_button = st.button("⚡ Generate Viral Shorts", type="primary", use_container_width=True)
+if os.name == "nt":
+    tab_upload, tab_yt_local = st.tabs([
+        "📁 ভিডিও আপলোড (ফোন / পিসি)",
+        "📺 ইউটিউব লিংক (Local PC)"
+    ])
+    with tab_yt_local:
+        url_input = st.text_input(
+            "ইউটিউব ভিডিও লিংক পেস্ট করুন (লোকাল পিসির নিজের IP দিয়ে ডাউনলোড হবে):",
+            placeholder="https://www.youtube.com/watch?v=... বা https://youtu.be/..."
+        )
+        preview_vid_id = VideoDownloader.extract_video_id(url_input.strip()) if url_input.strip() else None
+        if preview_vid_id:
+            st.video(f"https://www.youtube.com/watch?v={preview_vid_id}")
+        start_yt_button = st.button("⚡ Generate Viral Shorts (YouTube Link)", type="primary", use_container_width=True)
+else:
+    tab_upload = st.container()
 
-if start_upload_button:
-    if uploaded_file is None:
+with tab_upload:
+    st.info(
+        "📱 **ফোন / পিসি থেকে শর্টস বানানোর নিয়ম:**\n\n"
+        "১. নিচের **Browse files** বাটনে ট্যাপ করে ফোনের **Files / Downloads / Gallery** বা পিসি থেকে ভিডিও (`.mp4` / `.mov` / `.mkv`) সিলেক্ট করুন।\n"
+        "২. ফাইল সিলেক্ট হলে নিচের **'⚡ Generate Viral Shorts'** বাটনে চাপুন।\n"
+        "৩. প্রসেস চলাকালীন ব্রাউজার ট্যাবটি খোলা রাখুন—কয়েক মিনিটের মধ্যেই ৯:১৬ শর্টস তৈরি হয়ে যাবে।\n\n"
+        "⚠️ **গুরুত্বপূর্ণ (অনলাইন সার্ভার লিমিট):** ভিডিওর দৈর্ঘ্য যেন **১ ঘণ্টা বা তার বেশি না হয়** (১ ঘণ্টার নিচে বা ছোট/মাঝারি ভিডিও দিন), অন্যথায় ফ্রি ক্লাউড সার্ভারের RAM লিমিটের কারণে অ্যাপ ক্র্যাশ করতে পারে।"
+    )
+
+    uploaded_file = st.file_uploader(
+        "ফোন বা পিসি থেকে ভিডিও আপলোড করুন (MP4 / MOV / MKV / WEBM):",
+        type=["mp4", "mov", "mkv", "webm"],
+        help="সর্বোচ্চ 400MB পর্যন্ত ভিডিও আপলোড করা যাবে।"
+    )
+    start_upload_button = st.button("⚡ Generate Viral Shorts", type="primary", use_container_width=True)
+
+if start_upload_button or start_yt_button:
+    if start_upload_button and uploaded_file is None:
         st.error("দয়া করে একটি ভিডিও ফাইল আপলোড করুন!")
+    elif start_yt_button and not url_input.strip():
+        st.error("দয়া করে একটি সঠিক ইউটিউব ভিডিওর লিংক দিন!")
     else:
         progress_bar = st.progress(0.0)
         status_text = st.empty()
@@ -200,23 +224,35 @@ if start_upload_button:
                 gemini_model=selected_gemini_model
             )
 
-            temp_dir = os.path.join(BASE_DIR, "temp")
-            os.makedirs(temp_dir, exist_ok=True)
-            upload_path = os.path.join(temp_dir, uploaded_file.name)
-            with open(upload_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            if start_yt_button:
+                results = pipeline.process_url(
+                    url=url_input.strip(),
+                    num_clips=num_clips,
+                    min_duration=min_dur,
+                    max_duration=max_dur,
+                    crop_mode=selected_crop_mode,
+                    burn_subtitles=burn_subs,
+                    subtitle_color=selected_sub_color,
+                    progress_callback=on_progress
+                )
+            else:
+                temp_dir = os.path.join(BASE_DIR, "temp")
+                os.makedirs(temp_dir, exist_ok=True)
+                upload_path = os.path.join(temp_dir, uploaded_file.name)
+                with open(upload_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
 
-            results = pipeline.process_file(
-                video_path=upload_path,
-                video_title=os.path.splitext(uploaded_file.name)[0],
-                num_clips=num_clips,
-                min_duration=min_dur,
-                max_duration=max_dur,
-                crop_mode=selected_crop_mode,
-                burn_subtitles=burn_subs,
-                subtitle_color=selected_sub_color,
-                progress_callback=on_progress
-            )
+                results = pipeline.process_file(
+                    video_path=upload_path,
+                    video_title=os.path.splitext(uploaded_file.name)[0],
+                    num_clips=num_clips,
+                    min_duration=min_dur,
+                    max_duration=max_dur,
+                    crop_mode=selected_crop_mode,
+                    burn_subtitles=burn_subs,
+                    subtitle_color=selected_sub_color,
+                    progress_callback=on_progress
+                )
 
             status_text.success("🎉 সবগুলো শর্টস সফলভাবে তৈরি হয়েছে!")
             progress_bar.progress(1.0)

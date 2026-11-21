@@ -159,7 +159,7 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
 
 if __name__ == "__main__":
     sig = inspect.signature(demo.launch).parameters
-    launch_kwargs = {"server_name": "0.0.0.0", "server_port": 7860}
+    launch_kwargs = {"server_name": "127.0.0.1", "server_port": 7860, "inbrowser": True}
     if "ssr_mode" in sig:
         launch_kwargs["ssr_mode"] = False
     if "ssr" in sig:

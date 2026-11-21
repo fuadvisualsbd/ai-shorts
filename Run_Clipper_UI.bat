@@ -1,15 +1,13 @@
 @echo off
-title AI Video Clipper - YouTube to Shorts
+title AI Video Clipper - Shorts Generator
 cd /d "%~dp0"
 
 echo ========================================================
-echo   🎬 AI Video Clipper & Shorts Generator
-echo   Auto-extracting viral shorts from YouTube videos
+echo   AI Video Clipper ^& Shorts Generator
+echo   Launching Streamlit Web Dashboard...
 echo ========================================================
 echo.
-echo Launching Gradio Web Dashboard in your browser...
-echo.
 
-py -3.11 app.py
+py -3.11 -m streamlit run streamlit_app.py --server.address localhost --server.port 8501
 
 pause
