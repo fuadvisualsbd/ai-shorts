@@ -2,6 +2,16 @@ import os
 os.environ["GRADIO_SSR_MODE"] = "False"
 import json
 import inspect
+try:
+    import spaces
+except ImportError:
+    class _DummySpaces:
+        @staticmethod
+        def GPU(fn=None, **kwargs):
+            if fn is None:
+                return lambda f: f
+            return fn
+    spaces = _DummySpaces()
 import gradio as gr
 from core.pipeline import ClipperPipeline
 
@@ -33,6 +43,7 @@ def save_key(api_key: str):
     except Exception:
         pass
 
+@spaces.GPU(duration=120)
 def process_video(
     youtube_url: str,
     num_clips: int,
