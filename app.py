@@ -140,12 +140,9 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
     submit_btn.click(
         fn=process_video,
         inputs=[url_box, clips_slider, crop_select, subs_check, key_box],
-        outputs=out_targets
+        outputs=out_targets,
+        api_name=False
     )
 
 if __name__ == "__main__":
-    launch_kwargs = {"server_name": "0.0.0.0", "server_port": 7860}
-    import inspect
-    if "ssr_mode" in inspect.signature(demo.launch).parameters:
-        launch_kwargs["ssr_mode"] = False
-    demo.launch(**launch_kwargs)
+    demo.launch()

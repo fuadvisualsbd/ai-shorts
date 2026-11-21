@@ -1,4 +1,5 @@
 gradio>=5.0.0,<6.0.0
+pydantic==2.10.6
 yt-dlp>=2024.10.0
 youtube-transcript-api>=0.6.2
 webvtt-py>=0.4.6

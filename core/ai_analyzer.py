@@ -1,7 +1,9 @@
 import os
 import re
 import json
+import warnings
 from typing import Dict, List, Optional
+warnings.filterwarnings("ignore")
 import google.generativeai as genai
 
 class AIAnalyzer:
