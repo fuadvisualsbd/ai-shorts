@@ -142,49 +142,70 @@ for _secret_key in ("YOUTUBE_COOKIES", "GEMINI_API_KEY"):
 
 # Main Area
 st.markdown('<p class="main-title">🎬 AI Video Clipper & Shorts Generator</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">বড় ইউটিউব ভিডিওর লিংক বা মোবাইল/পিসি থেকে ভিডিও দিন — AI স্বয়ংক্রিয়ভাবে আকর্ষণীয় ভাইরাল মোমেন্ট খুঁজে ৯:১৬ রিলস/শর্টস বানিয়ে দেবে।</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">বড় ইউটিউব ভিডিওর লিংক দিন বা ফোন/পিসি থেকে ভিডিও আপলোড করুন — AI স্বয়ংক্রিয়ভাবে সেরা ভাইরাল মোমেন্ট খুঁজে ৯:১৬ রিলস/শর্টস বানিয়ে দেবে।</p>', unsafe_allow_html=True)
 
-tab_yt, tab_upload, tab_direct = st.tabs([
-    "📺 ইউটিউব লিংক",
-    "📁 ভিডিও আপলোড (ফোন / পিসি)",
-    "🔗 ডাইরেক্ট ভিডিও লিংক (MP4)"
+tab_yt, tab_upload = st.tabs([
+    "📺 ইউটিউব লিংক ও ডাউনলোড",
+    "📁 ভিডিও আপলোড (ফোন / পিসি)"
 ])
 
 with tab_yt:
     url_input = st.text_input(
         "ইউটিউব ভিডিও লিংক পেস্ট করুন:",
         placeholder="https://www.youtube.com/watch?v=... বা https://youtu.be/...",
-        help="যেকোনো পডকাস্ট, ইন্টারভিউ বা দীর্ঘ ভিডিওর লিঙ্ক দিন।"
+        help="YouTube অ্যাপ থেকে Share → Copy link করে এখানে পেস্ট করুন।"
     )
     preview_vid_id = VideoDownloader.extract_video_id(url_input.strip()) if url_input.strip() else None
+    clean_yt_url = f"https://www.youtube.com/watch?v={preview_vid_id}" if preview_vid_id else ""
+
     if preview_vid_id:
-        st.video(f"https://www.youtube.com/watch?v={preview_vid_id}")
-    start_yt_button = st.button("⚡ Download & Generate Viral Shorts", type="primary", use_container_width=True)
+        st.video(clean_yt_url)
+        start_yt_button = st.button("⚡ সরাসরি প্রসেস করুন (Auto Shorts)", type="primary", use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("⬇️ ফোনে বা পিসিতে এই ভিডিওটি ডাউনলোড করুন")
+        st.info(
+            "📱 **ফোন ও পিসি ইউজারদের জন্য সহজ নিয়ম (৩ ধাপ):**\n\n"
+            "১. নিচের **'⬇️ ভিডিও ডাউনলোড করুন'** বাটনে ট্যাপ করুন (`cobalt.tools` খুলবে এবং আপনার ভিডিওর লিংক অটো বসে যাবে)।\n"
+            "২. সেখানে ডাউনলোড আইকন (`>>` / Download) চাপলেই ভিডিওটি `.mp4` হিসেবে আপনার ফোনের **Downloads / Gallery**-তে সেভ হবে।\n"
+            "৩. ডাউনলোড শেষ হলে উপরের **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাবে গিয়ে ভিডিওটি আপলোড করুন।"
+        )
+        st.link_button(
+            "⬇️ এই ভিডিওটি ডাউনলোড করুন (cobalt.tools)",
+            f"https://cobalt.tools/#{clean_yt_url}",
+            use_container_width=True
+        )
+        with st.expander("📋 লিংক কপি বা বিকল্প ডাউনলোডারের জন্য দেখুন"):
+            st.caption("যদি লিংক অটো না বসে বা অন্য ডাউনলোডার অ্যাপ/সাইট ব্যবহার করেন, নিচের লিংকটির ডানপাশের কপি আইকনে ট্যাপ করুন:")
+            st.code(clean_yt_url, language=None)
+    else:
+        start_yt_button = st.button("⚡ সরাসরি প্রসেস করুন (Auto Shorts)", type="primary", use_container_width=True)
+        st.info(
+            "📱 **ফোন থেকে ব্যবহারের নিয়ম:**\n"
+            "১. YouTube অ্যাপে ভিডিওর **Share → Copy link** চাপুন।\n"
+            "২. উপরের বক্সে লিংক পেস্ট করলে ভিডিও প্রিভিউ ও **ফোনে ডাউনলোড বাটন** চলে আসবে।\n"
+            "৩. যদি সরাসরি প্রসেসে সার্ভার ব্লক দেখায়, তাহলে ডাউনলোড বাটন দিয়ে ভিডিও সেভ করে **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাব থেকে শর্টস বানিয়ে নিন।"
+        )
 
 with tab_upload:
-    st.info("💡 ফোনের ইন্টারনেটে **cobalt.tools** বা যেকোনো ডাউনলোডার দিয়ে ভিডিওটি নামিয়ে এখানে আপলোড করলে ১০০% কাজ করবে (কোনো YouTube ব্লক ছাড়া)।")
+    st.info(
+        "📱 **ফোন / পিসি থেকে শর্টস বানানোর নিয়ম:**\n\n"
+        "১. নিচের **Browse files** বাটনে ট্যাপ করে ফোনের **Files / Downloads / Gallery** থেকে ভিডিও (`.mp4`) সিলেক্ট করুন।\n"
+        "২. ফাইল সিলেক্ট হলে নিচের **'⚡ Generate Viral Shorts (Upload)'** বাটনে চাপুন।\n"
+        "৩. প্রসেস চলাকালীন ব্রাউজার ট্যাবটি খোলা রাখুন—কয়েক মিনিটের মধ্যেই ৯:১৬ শর্টস তৈরি হয়ে যাবে।"
+    )
     uploaded_file = st.file_uploader(
-        "ফোন বা পিসি থেকে ভিডিও আপলোড করুন (MP4 / MOV / MKV):",
+        "ফোন বা পিসি থেকে ভিডিও আপলোড করুন (MP4 / MOV / MKV / WEBM):",
         type=["mp4", "mov", "mkv", "webm"],
-        help="ইউটিউব কখনো ক্লাউড সার্ভার ব্লক করলে সরাসরি ভিডিও ফাইল আপলোড করেও রিলস বানাতে পারবেন।"
+        help="সর্বোচ্চ 400MB পর্যন্ত ভিডিও আপলোড করা যাবে।"
     )
     start_upload_button = st.button("⚡ Generate Viral Shorts (Upload)", type="primary", use_container_width=True)
 
-with tab_direct:
-    direct_url_input = st.text_input(
-        "সরাসরি MP4 / ভিডিও ফাইল লিংক পেস্ট করুন:",
-        placeholder="https://.../video.mp4",
-        help="ফোনের ডাউনলোডার থেকে পাওয়া সরাসরি .mp4 ডাউনলোড লিংক দিন।"
-    )
-    start_direct_button = st.button("⚡ Generate Viral Shorts (Direct URL)", type="primary", use_container_width=True)
-
-if start_yt_button or start_upload_button or start_direct_button:
+if start_yt_button or start_upload_button:
     if start_yt_button and not url_input.strip():
         st.error("দয়া করে একটি সঠিক ইউটিউব ভিডিওর লিংক দিন!")
     elif start_upload_button and uploaded_file is None:
         st.error("দয়া করে একটি ভিডিও ফাইল আপলোড করুন!")
-    elif start_direct_button and not direct_url_input.strip():
-        st.error("দয়া করে একটি সঠিক ডাইরেক্ট ভিডিও (MP4) লিংক দিন!")
     else:
         progress_bar = st.progress(0.0)
         status_text = st.empty()
@@ -203,17 +224,6 @@ if start_yt_button or start_upload_button or start_direct_button:
             if start_yt_button:
                 results = pipeline.process_url(
                     url=url_input.strip(),
-                    num_clips=num_clips,
-                    min_duration=min_dur,
-                    max_duration=max_dur,
-                    crop_mode=selected_crop_mode,
-                    burn_subtitles=burn_subs,
-                    subtitle_color=selected_sub_color,
-                    progress_callback=on_progress
-                )
-            elif start_direct_button:
-                results = pipeline.process_direct_url(
-                    direct_url=direct_url_input.strip(),
                     num_clips=num_clips,
                     min_duration=min_dur,
                     max_duration=max_dur,
@@ -247,16 +257,24 @@ if start_yt_button or start_upload_button or start_direct_button:
 
         except Exception as e:
             err_msg = str(e)
-            st.error(f"❌ এরর দেখা দিয়েছে: {err_msg}")
             if "403" in err_msg or "not a bot" in err_msg.lower() or "cookies" in err_msg.lower():
+                target_dl_url = clean_yt_url or url_input.strip()
                 st.warning(
-                    "💡 ক্লাউড সার্ভারের IP থেকে YouTube এই ভিডিওটি ব্লক করেছে। "
-                    "আপনার ফোনের ইন্টারনেট ব্যবহার করে ডাউনলোড করতে নিচের বাটনে ক্লিক করে ভিডিওটি নামান, "
-                    "তারপর পাশের **'📁 ভিডিও আপলোড'** ট্যাবে আপলোড করুন বা **'🔗 ডাইরেক্ট ভিডিও লিংক'** ট্যাবে লিংক দিন:"
+                    "🔒 ক্লাউড সার্ভারের IP থেকে YouTube সরাসরি ডাউনলোড ব্লক করেছে।\n\n"
+                    "**সহজ সমাধান (ফোন বা পিসি থেকে):**\n"
+                    "১. নিচের **'⬇️ এই ভিডিওটি ডাউনলোড করুন'** বাটনে ট্যাপ করে ভিডিওটি সেভ করুন।\n"
+                    "২. তারপর উপরের **'📁 ভিডিও আপলোড (ফোন / পিসি)'** ট্যাবে গিয়ে ফাইলটি আপলোড করলেই ১০০% শর্টস তৈরি হবে।"
                 )
-                st.link_button("⬇️ ফোনের নেট দিয়ে YouTube ভিডিও ডাউনলোড করুন (cobalt.tools)", "https://cobalt.tools")
+                st.link_button(
+                    "⬇️ ফোনের নেট দিয়ে এই ভিডিওটি ডাউনলোড করুন (cobalt.tools)",
+                    f"https://cobalt.tools/#{target_dl_url}" if target_dl_url else "https://cobalt.tools",
+                    use_container_width=True
+                )
+                with st.expander("টেকনিক্যাল এরর ডিটেইলস"):
+                    st.code(err_msg)
             else:
-                st.info("টিপ: ভিডিওতে অডিও ঠিক আছে কি না অথবা লিঙ্কটি সঠিক কি না তা যাচাই করুন।")
+                st.error(f"❌ এরর দেখা দিয়েছে: {err_msg}")
+                st.info("টিপ: ভিডিওতে কথা/অডিও ঠিক আছে কি না অথবা লিংকটি সঠিক কি না তা যাচাই করুন।")
 
 if st.session_state.get("clips_results"):
     results = st.session_state["clips_results"]
