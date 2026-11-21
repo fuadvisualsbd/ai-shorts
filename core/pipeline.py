@@ -73,6 +73,73 @@ class ClipperPipeline:
         if not segments:
             raise RuntimeError("কোনো কথা বা ট্রান্সক্রিপ্ট পাওয়া যায়নি।")
 
+        return self._analyze_and_render_clips(
+            video_path=video_path,
+            video_title=video_title,
+            segments=segments,
+            num_clips=num_clips,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            crop_mode=crop_mode,
+            burn_subtitles=burn_subtitles,
+            subtitle_color=subtitle_color,
+            update_progress=update_progress
+        )
+
+    def process_file(
+        self,
+        video_path: str,
+        video_title: str = "Uploaded Video",
+        num_clips: int = 3,
+        min_duration: int = 30,
+        max_duration: int = 60,
+        crop_mode: str = "center_crop",
+        burn_subtitles: bool = True,
+        subtitle_color: str = "&H0000FFFF",
+        progress_callback: Optional[Callable[[str, float], None]] = None
+    ) -> List[Dict]:
+        """Processes an already downloaded or uploaded local video file."""
+        def update_progress(msg: str, frac: float):
+            if progress_callback:
+                progress_callback(msg, frac)
+            print(f"[{int(frac * 100)}%] {msg}")
+
+        update_progress("ভিডিও থেকে অডিও আলাদা করা হচ্ছে...", 0.15)
+        audio_path = self.downloader.extract_audio(video_path)
+
+        update_progress("Whisper AI দিয়ে অডিও ট্রান্সক্রিপশন ও কথা সনাক্ত করা হচ্ছে...", 0.35)
+        segments = self.transcriber.transcribe(audio_path)
+
+        if not segments:
+            raise RuntimeError("ভিডিওতে কোনো কথা বা ট্রান্সক্রিপ্ট পাওয়া যায়নি।")
+
+        return self._analyze_and_render_clips(
+            video_path=video_path,
+            video_title=video_title,
+            segments=segments,
+            num_clips=num_clips,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            crop_mode=crop_mode,
+            burn_subtitles=burn_subtitles,
+            subtitle_color=subtitle_color,
+            update_progress=update_progress
+        )
+
+    def _analyze_and_render_clips(
+        self,
+        video_path: str,
+        video_title: str,
+        segments: List[Dict],
+        num_clips: int,
+        min_duration: int,
+        max_duration: int,
+        crop_mode: str,
+        burn_subtitles: bool,
+        subtitle_color: str,
+        update_progress: Callable[[str, float], None]
+    ) -> List[Dict]:
+        """Runs viral clip detection and renders 9:16 vertical clips."""
         update_progress("AI দিয়ে ভাইরাল হুক এবং সেরা মোমেন্ট অ্যানালাইসিস করা হচ্ছে...", 0.60)
         clips = self.ai_analyzer.analyze_viral_clips(
             segments,

@@ -27,6 +27,16 @@ class VideoDownloader:
             return f"https://www.youtube.com/watch?v={video_id}"
         return url.strip()
 
+    def _get_cookiefile(self) -> Optional[str]:
+        """Writes YOUTUBE_COOKIES env var (e.g. from Streamlit Secrets) to a temp file if provided."""
+        cookies_content = os.environ.get("YOUTUBE_COOKIES", "").strip()
+        if not cookies_content:
+            return None
+        cookie_path = os.path.join(self.temp_dir, "yt_cookies.txt")
+        with open(cookie_path, "w", encoding="utf-8") as f:
+            f.write(cookies_content)
+        return cookie_path
+
     def get_info(self, url: str) -> Dict:
         """Fetches video metadata (title, duration, thumbnail, author) without downloading."""
         clean_url = self.normalize_url(url)
@@ -38,6 +48,9 @@ class VideoDownloader:
             'socket_timeout': 25,
             'retries': 3,
         }
+        cookiefile = self._get_cookiefile()
+        if cookiefile:
+            ydl_opts['cookiefile'] = cookiefile
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(clean_url, download=False)
             return {
@@ -149,6 +162,9 @@ class VideoDownloader:
             }
             if clients:
                 ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
+            cookiefile = self._get_cookiefile()
+            if cookiefile:
+                ydl_opts['cookiefile'] = cookiefile
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -173,13 +189,16 @@ class VideoDownloader:
         if not final_video_path:
             raise RuntimeError(f"ভিডিও ডাউনলোড করা যায়নি (YouTube ব্লক বা খালি ফাইল): {last_error}")
 
-        audio_path = os.path.join(self.temp_dir, f"{video_id}_audio.wav")
-        # Extract 16kHz mono audio for Whisper / processing
+        audio_path = self.extract_audio(final_video_path, prefix=video_id)
+        return final_video_path, audio_path
+
+    def extract_audio(self, video_path: str, prefix: str = "uploaded") -> str:
+        """Extracts 16kHz mono WAV audio from a video file for Whisper transcription."""
+        audio_path = os.path.join(self.temp_dir, f"{prefix}_audio.wav")
         cmd = [
-            "ffmpeg", "-y", "-i", final_video_path,
+            "ffmpeg", "-y", "-i", video_path,
             "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
             audio_path
         ]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-
-        return final_video_path, audio_path
+        return audio_path
