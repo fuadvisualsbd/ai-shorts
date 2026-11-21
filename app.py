@@ -144,4 +144,8 @@ with gr.Blocks(title="AI Video Clipper - YouTube to Shorts") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    launch_kwargs = {"server_name": "0.0.0.0", "server_port": 7860}
+    import inspect
+    if "ssr_mode" in inspect.signature(demo.launch).parameters:
+        launch_kwargs["ssr_mode"] = False
+    demo.launch(**launch_kwargs)
