@@ -1,4 +1,4 @@
-streamlit>=1.30.0
+gradio>=5.0.0
 yt-dlp>=2024.10.0
 youtube-transcript-api>=0.6.2
 webvtt-py>=0.4.6

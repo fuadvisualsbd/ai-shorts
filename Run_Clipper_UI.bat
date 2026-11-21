@@ -7,9 +7,9 @@ echo   🎬 AI Video Clipper & Shorts Generator
 echo   Auto-extracting viral shorts from YouTube videos
 echo ========================================================
 echo.
-echo Launching Web Dashboard in your browser...
+echo Launching Gradio Web Dashboard in your browser...
 echo.
 
-py -3.11 -m streamlit run app.py --server.port 8501 --server.headless false
+py -3.11 app.py
 
 pause
